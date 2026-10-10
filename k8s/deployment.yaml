@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-api
+  namespace: eventhub
+  labels:
+    app: eventhub-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eventhub-api
+  template:
+    metadata:
+      labels:
+        app: eventhub-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/ekar-071/eventhub-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: eventhub-secrets
+                  key: SECRET_KEY
+            # SQLite local à chaque pod : OK pour une démo. En production, utiliser PostgreSQL via DATABASE_URL.
+            - name: DATABASE_URL
+              value: sqlite:////tmp/eventhub.db
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
